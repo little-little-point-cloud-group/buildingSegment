@@ -1,0 +1,1 @@
+-a=C:\Users\31046\Desktop\city3D\Block.ply -s=C:\Users\31046\Desktop\city3D\pointCloud.ply
