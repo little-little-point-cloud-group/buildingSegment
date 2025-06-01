@@ -78,8 +78,8 @@ public:PCCPointSet3 pointcloud;
           }
 
 
-          this->width = (this->box.max[0] - this->box.min[0]) / this->bin+1;
-          this->height = (this->box.max[1] - this->box.min[1]) / this->bin+1;
+          this->width = (this->box.max[0] - this->box.min[0]) / this->bin+2;
+          this->height = (this->box.max[1] - this->box.min[1]) / this->bin+2;
 
           this->image.resize(this->width * this->height, 0);
       }
@@ -90,23 +90,23 @@ public:PCCPointSet3 pointcloud;
 
           
 
-   /*       for (int i = 0;i < this->image.size();i++)
+          for (int i = 0;i < this->image.size();i++)
               this->image[i] = std::log2(this->image[i]+1);
-*/
-          int max = 0;
+
+          double max = 0;
           for (int i = 0;i < this->image.size();i++)
               if (this->image[i] > max)
                   max = this->image[i];
 
           for (int i = 0;i < this->image.size();i++){//归一化
-                  image[i] = 255.0*std::log2(1.0*this->image[i]/max);
+                  image[i] = 255.0*this->image[i]/max;
           }
 
 
           stbi_write_png(savePath, this->width, this->height, this->channels, image.data(), this->width * this->channels);
       }
 
-      int& pixel(int x, int y) {
+      double& pixel(int x, int y) {
           return this->image[(y * width + x) * this->channels];
       }
 
@@ -116,7 +116,16 @@ public:PCCPointSet3 pointcloud;
               auto pt = this->pointcloud[i];
               int x = pt[0] / bin;
               int y = pt[1] / bin;
-              this->pixel(x, y)++;
+              for(int xi=0;xi<2;xi++)
+                  for (int yi = 0;yi < 2;yi++)
+                  {
+                      auto w = 1.0*pt[0] / bin-x;
+                      auto h = 1.0 * pt[1] / bin - y;
+                      double s = ((xi == 1) ? w : (1 - w)) * ((yi == 1) ? h : (1 - h));
+                      this->pixel(x+xi, y+yi)+=s;
+                  }
+
+  /*            this->pixel(x, y)++;*/
           }
       }
 
@@ -124,7 +133,7 @@ public:PCCPointSet3 pointcloud;
 private: Box box;
     int bin=80;//分箱长度为1000毫米
     int width, height, channels=1;
-    std::vector<int> image; 
+    std::vector<double> image; 
 
 };
 
