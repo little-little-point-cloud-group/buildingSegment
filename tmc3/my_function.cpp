@@ -1,5 +1,5 @@
 #include "TMC3.h"
-
+#include <opencv2/opencv.hpp>
 #include <memory>
 #include <filesystem>
 #include "PCCTMC3Encoder.h"
@@ -13,8 +13,75 @@
 #include "my_function.h"
 using namespace std;
 using namespace pcc;
+using namespace cv;
+void extracted_contour(string read_path, string save_path,string flip) {
+    Mat src = imread(read_path, IMREAD_COLOR);
+    if (src.empty()) {
+        cout << "无法加载点云图像" << endl;
+    }
+  
+    // 2. 创建处理结果的图像副本
+    Mat result = src.clone();
+
+    // 3. 提取红色通道并进行阈值处理
+    Mat redChannel;
+    extractChannel(src, redChannel, 1); // 提取红色通道(索引2)
+    threshold(redChannel, redChannel, 10, 255, THRESH_BINARY); // 二值化处理
 
 
+    // 4. 形态学操作连接邻近点云
+    Mat kernel = getStructuringElement(MORPH_ELLIPSE, Size(5, 5));
+    Mat morphed;
+    morphologyEx(redChannel, morphed, MORPH_CLOSE, kernel, Point(-1, -1), 2);
+    cv::namedWindow("形态学处理结果", cv::WINDOW_NORMAL); // 允许调整窗口
+    imshow("形态学处理结果", morphed);
+    waitKey();
+    // 5. 寻找轮廓
+    vector<vector<Point>> contours;
+    vector<Vec4i> hierarchy;
+    findContours(morphed, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+    // 6. 筛选主要的建筑物轮廓
+    vector<vector<Point>> buildingContours;
+    for (size_t i = 0; i < contours.size(); i++) {
+        double area = contourArea(contours[i]);
+        double perimeter = arcLength(contours[i], true);
+
+        // 根据面积和周长筛选大型轮廓
+        if (area > 500 && perimeter > 100) {
+            buildingContours.push_back(contours[i]);
+
+            //// 绘制轮廓边界框
+            //RotatedRect minRect = minAreaRect(contours[i]);
+            //Point2f rectPoints[4];
+            //minRect.points(rectPoints);
+            //for (int j = 0; j < 4; j++) {
+            //    line(result, rectPoints[j], rectPoints[(j + 1) % 4], Scalar(255, 255, 0), 2);
+            //}
+        }
+    }
+
+    // 7. 绘制所有建筑物轮廓
+    for (size_t i = 0; i < buildingContours.size(); i++) {
+        drawContours(result, buildingContours, i, Scalar(255, 255, 0), 2);
+    }
+
+    // 8. 显示处理过程中的图像
+    //cv::namedWindow("红色通道提取", cv::WINDOW_NORMAL); // 允许调整窗口
+    //cv::namedWindow("形态学处理结果", cv::WINDOW_NORMAL); // 允许调整窗口
+    //cv::namedWindow("建筑物轮廓提取", cv::WINDOW_NORMAL); // 允许调整窗口
+
+    //imshow("红色通道提取", redChannel);
+    //imshow("形态学处理结果", morphed);
+    //imshow("建筑物轮廓提取", result);
+
+    // 9. 保存结果图像
+    imwrite(save_path, result);
+    Mat image_fliped;
+    cv::flip(result, image_fliped, 0);
+    imwrite(flip, image_fliped);
+
+}
 
 vector<string>
 Split(const string& s, const string& seperator)

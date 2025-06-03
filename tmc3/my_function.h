@@ -22,7 +22,7 @@ public:
   string num_sizePath;
   int frame;
 };
-
+void extracted_contour(string read_path, string save_path, string flip);
 param analyse_path(char* argv[]);
 
 vector<int> 

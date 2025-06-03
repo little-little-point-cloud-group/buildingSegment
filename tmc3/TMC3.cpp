@@ -41,17 +41,20 @@
 #include "PCCTMC3Decoder.h"
 #include "constants.h"
 #include "ply.h"
+#include <opencv2/opencv.hpp>
 #include "pointset_processing.h"
 #include "program_options_lite.h"
 #include "io_tlv.h"
 #include "version.h"
 using namespace std;
 using namespace pcc;
-
+using namespace cv;
 struct Box {
     Vec3<int> min = std::numeric_limits<int32_t>::max();
     Vec3<int> max= std::numeric_limits<int32_t>::lowest();
 };
+
+
 //============================================================================
 class buildingSeg{
 
@@ -78,40 +81,63 @@ public:PCCPointSet3 pointcloud;
           }
 
 
-          this->width = (this->box.max[0] - this->box.min[0]) / this->bin+2;
-          this->height = (this->box.max[1] - this->box.min[1]) / this->bin+2;
+          width = (this->box.max[0] - this->box.min[0]) / this->bin+2;
+          height = (this->box.max[1] - this->box.min[1]) / this->bin+2;
 
-          this->image.resize(this->width * this->height, 0);
+          this->image.resize(this->width * this->height* channels, 0);
       }
 
-      void save_image(char savePath[]) {
+      void save_image(string savePath) {
           std::vector<uint8_t> image; // 使用8位无符号整数（0-255范围）
-          image.resize(this->width * this->height*3, 0);
+          image.resize(width * height*channels, 0);
+
+          double max[3] = { 0 };
+          for (int i = 0;i < width;i++)
+              for (int j = 0;j < height;j++)
+                  for(int channel=0;channel< channels;channel++)
+                      if(max[channel]< pixel(i, j, channel))
+                            max[channel]=pixel(i, j, channel);
+         
+
+          for (int i = 0;i < width;i++)
+              for (int j = 0;j < height;j++)
+                  for (int channel = 0;channel < 1;channel++)
+                      if (max[channel]!=0)
+                            image[(i  + j * width) * channels + channel]= 255.0 * (1.0 * pixel(i, j, channel)/ max[channel]);
+          stbi_write_png((savePath+"平均高度.png").c_str(), this->width, this->height, this->channels, image.data(), this->width * this->channels);
 
           
-
-          for (int i = 0;i < this->image.size();i++)
-              this->image[i] = std::log2(this->image[i]+1);
-
-          double max = 0;
-          for (int i = 0;i < this->image.size();i++)
-              if (this->image[i] > max)
-                  max = this->image[i];
-
-          for (int i = 0;i < this->image.size();i++){//归一化
-                  image[i] = 255.0*this->image[i]/max;
-          }
+          image.clear();
+          image.resize(width * height * channels, 0);
+          for (int i = 0;i < width;i++)
+              for (int j = 0;j < height;j++)
+                  for (int channel = 1;channel < 2;channel++)
+                      if (max[channel] != 0)
+                          image[(i + j * width) * channels + channel] = 255.0 * (1.0 * pixel(i, j, channel) / max[channel]);
+          stbi_write_png((savePath + "像素数量.png").c_str(), this->width, this->height, this->channels, image.data(), this->width * this->channels);
 
 
-          stbi_write_png(savePath, this->width, this->height, this->channels, image.data(), this->width * this->channels);
+
+          image.clear();
+          image.resize(width * height * channels, 0);
+          for (int i = 0;i < width;i++)
+              for (int j = 0;j < height;j++)
+                  for (int channel = 2;channel < 3;channel++)
+                      if (max[channel] != 0)
+                          image[(i + j * width) * channels+1] = 255.0 * (1.0 * pixel(i, j, channel) / max[channel]);
+          stbi_write_png((savePath + "像素数量+高度.png").c_str(), this->width, this->height, this->channels, image.data(), this->width * this->channels);
+
       }
 
-      double& pixel(int x, int y) {
-          return this->image[(y * width + x) * this->channels];
+      double& pixel(int x, int y,int channel) {
+          return this->image[(y * width + x) * channels + channel];
       }
 
       void compute_gird_picture() {
           auto bin = this->bin;
+
+          double th = groundTH();
+
           for (size_t i = 0; i < this->pointcloud.getPointCount(); ++i) {
               auto pt = this->pointcloud[i];
               int x = pt[0] / bin;
@@ -119,21 +145,65 @@ public:PCCPointSet3 pointcloud;
               for(int xi=0;xi<2;xi++)
                   for (int yi = 0;yi < 2;yi++)
                   {
+                      if (pt[2] < th)
+                          continue;
                       auto w = 1.0*pt[0] / bin-x;
                       auto h = 1.0 * pt[1] / bin - y;
                       double s = ((xi == 1) ? w : (1 - w)) * ((yi == 1) ? h : (1 - h));
-                      this->pixel(x+xi, y+yi)+=s;
-                  }
+                      this->pixel(x+xi, y+yi,1)+=s;                                               //像素数量为g分量
+                      this->pixel(x + xi, y + yi, 0) += s*pt[2];                                  //高度图为r分量
 
-  /*            this->pixel(x, y)++;*/
+                  }
           }
+
+
+          for (int i = 0;i < width;i++)                                 //计算平均高度，获得清晰图像
+              for (int j = 0;j < height;j++) {
+                  if (pixel(i, j, 1) != 0) {
+                      pixel(i, j, 0) = pixel(i, j, 0) / pixel(i, j, 1);
+                  }  
+              }
+
+          for (int i = 0;i < width;i++)                                 //像素数量对数化，获得清晰图像
+              for (int j = 0;j < height;j++) {
+                  pixel(i, j, 1) = std::log(pixel(i, j, 1) + 1);
+                  if (pixel(i, j, 1) != 0)                              
+                      pixel(i, j, 1) += 20;               
+              }
+
+
+          for (int i = 0;i < width;i++)                                 //计算平均高度，获得清晰图像
+              for (int j = 0;j < height;j++) {
+                      pixel(i, j, 2) = pixel(i, j, 0) * pixel(i, j, 1);
+              }
+
       }
 
 
+      
 private: Box box;
-    int bin=80;//分箱长度为1000毫米
-    int width, height, channels=1;
-    std::vector<double> image; 
+    int bin=80,bin_height=1000;//分箱长度为1000毫米,高度每段0.1米
+    int width, height, channels=3;
+    std::vector<double> image;
+
+    double groundTH() {
+        std::vector<int> num_heigh;
+        num_heigh.resize((box.max[2]-box.min[2])/ bin_height+1, 0);
+        int TH = pointcloud.getPointCount() / 2;
+        for (size_t i = 0; i < pointcloud.getPointCount(); ++i) {
+            const auto& pt = pointcloud[i];
+            num_heigh[pt[2] / bin_height]++;
+        }
+
+        int total = 0,i;
+        for (i = 0;i < num_heigh.size();i++){
+            total += num_heigh[i];
+            if (total > TH)
+                break;
+        }
+
+        return i*bin_height;
+    }
 
 };
 
@@ -150,11 +220,12 @@ main(int argc, char* argv[])
   }                
   buildingSeg seg=buildingSeg(pointCloud);
   seg.compute_gird_picture();
-  seg.save_image("C:\\Users\\31046\\Desktop\\city3D\\out.png");
+  string base= "C:\\Users\\31046\\Desktop\\city3D\\";
+  seg.save_image(base);
 
- 
+  extracted_contour(base+"像素数量.png", base + "extracted_contours.png",base+"extracted_contours_flip.png");
+
   return 0;
 }
-
 
 //ply::write(encoder_pointCloud, { "x", "y", "z" }, 1.00, { 0, 0, 0 }, path.savePath, false);
