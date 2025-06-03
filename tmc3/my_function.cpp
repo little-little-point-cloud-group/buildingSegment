@@ -33,9 +33,9 @@ void extracted_contour(string read_path, string save_path,string flip) {
     Mat kernel = getStructuringElement(MORPH_ELLIPSE, Size(5, 5));
     Mat morphed;
     morphologyEx(redChannel, morphed, MORPH_CLOSE, kernel, Point(-1, -1), 2);
-    cv::namedWindow("形态学处理结果", cv::WINDOW_NORMAL); // 允许调整窗口
-    imshow("形态学处理结果", morphed);
-    waitKey();
+   // cv::namedWindow("形态学处理结果", cv::WINDOW_NORMAL); // 允许调整窗口
+    //imshow("形态学处理结果", morphed);
+    //waitKey();
     // 5. 寻找轮廓
     vector<vector<Point>> contours;
     vector<Vec4i> hierarchy;

@@ -182,7 +182,7 @@ public:PCCPointSet3 pointcloud;
 
       
 private: Box box;
-    int bin=80,bin_height=1000;//分箱长度为1000毫米,高度每段0.1米
+    int bin=25,bin_height=1000;//分箱长度为1000毫米,高度每段0.1米
     int width, height, channels=3;
     std::vector<double> image;
 

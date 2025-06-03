@@ -1,5 +1,20 @@
 cmake_minimum_required(VERSION 3.0)
 enable_language(C)
+set(OpenCV_DIR "C:/little_boy/software/opencv/opencv/build/x64/vc16/lib")
+# 2. 查找 OpenCV 包
+find_package(OpenCV REQUIRED
+    COMPONENTS core highgui imgproc videoio  # 指定你需要的模块
+    PATHS ${OpenCV_DIR}  # 指定搜索路径
+)
+# 检查是否找到 OpenCV
+if(NOT OpenCV_FOUND)
+    message(FATAL_ERROR "OpenCV not found! Please set OpenCV_DIR correctly.")
+else()
+    # 打印找到的 OpenCV 版本信息
+    message(STATUS "Found OpenCV: ${OpenCV_VERSION}")
+    message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
+    message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+endif()
 
 if (UNIX)
   add_definitions(-D_POSIX_C_SOURCE=200809L)
@@ -175,6 +190,12 @@ add_executable (tmc3
   ${VERSION_FILE}
 )
 add_dependencies(tmc3 genversion)
+
+# 5. 链接 OpenCV 库
+target_link_libraries(tmc3 PRIVATE ${OpenCV_LIBS})
+
+# 6. 包含 OpenCV 头文件目录
+target_include_directories(tmc3 PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 add_executable (ply-merge EXCLUDE_FROM_ALL
   "../tools/ply-merge.cpp"
