@@ -33,19 +33,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "TMC3.h"
 #include"my_function.h"
 #include <memory>
+#include <iostream>
+#include <vector>
 #include "stb_image_write.h"
-#include "PCCTMC3Encoder.h"
-#include "PCCTMC3Decoder.h"
-#include "constants.h"
-#include "ply.h"
 #include <opencv2/opencv.hpp>
-#include "pointset_processing.h"
-#include "program_options_lite.h"
-#include "io_tlv.h"
-#include "version.h"
+#include "PCCPointSet.h"
+#include "ply.h"
+using namespace open3d;
 using namespace std;
 using namespace pcc;
 using namespace cv;
@@ -53,7 +49,6 @@ struct Box {
     Vec3<int> min = std::numeric_limits<int32_t>::max();
     Vec3<int> max= std::numeric_limits<int32_t>::lowest();
 };
-
 
 //============================================================================
 class buildingSeg{
@@ -157,6 +152,7 @@ public:PCCPointSet3 pointcloud;
           }
 
 
+
           for (int i = 0;i < width;i++)                                 //计算平均高度，获得清晰图像
               for (int j = 0;j < height;j++) {
                   if (pixel(i, j, 1) != 0) {
@@ -172,17 +168,17 @@ public:PCCPointSet3 pointcloud;
               }
 
 
-          for (int i = 0;i < width;i++)                                 //计算平均高度，获得清晰图像
-              for (int j = 0;j < height;j++) {
-                      pixel(i, j, 2) = pixel(i, j, 0) * pixel(i, j, 1);
-              }
+          //for (int i = 0;i < width;i++)                                 //计算平均高度，获得清晰图像
+          //    for (int j = 0;j < height;j++) {
+          //            pixel(i, j, 2) = pixel(i, j, 0) * pixel(i, j, 1);
+          //    }
 
       }
 
 
       
 private: Box box;
-    int bin=25,bin_height=1000;//分箱长度为1000毫米,高度每段0.1米
+    int bin=100,bin_height=1000;//分箱长度为1000毫米,高度每段0.1米
     int width, height, channels=3;
     std::vector<double> image;
 
@@ -213,16 +209,25 @@ main(int argc, char* argv[])
   param path = analyse_path(argv);  
   PCCPointSet3 pointCloud;
   double positionScale = 1000;                   //转成毫米       
-  if (!ply::read(path.readPath, { "x", "y", "z" }, positionScale, pointCloud)
-    || pointCloud.getPointCount() == 0) {
-    cout << "Error: can't open "<< path.readPath << endl;
-    return -1;
-  }                
+  ply::read(path.readPath, { "x", "y", "z" }, positionScale, pointCloud);
+
+  open3d::geometry::PointCloud cloud;
+  cloud.points_.resize(pointCloud.getPointCount());
+  for (size_t i = 0; i < pointCloud.getPointCount(); ++i) {
+      cloud.points_[i] = Eigen::Vector3d(
+          pointCloud[i][0],
+          pointCloud[i][1],
+          pointCloud[i][2]
+      );
+  }
+
+
+  // 5. 可视化点云
+  open3d::io::WritePointCloud("cloud.ply", cloud);
   buildingSeg seg=buildingSeg(pointCloud);
   seg.compute_gird_picture();
   string base= "C:\\Users\\31046\\Desktop\\city3D\\";
   seg.save_image(base);
-
   extracted_contour(base+"像素数量.png", base + "extracted_contours.png",base+"extracted_contours_flip.png");
 
   return 0;

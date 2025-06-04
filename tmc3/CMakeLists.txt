@@ -1,12 +1,25 @@
 cmake_minimum_required(VERSION 3.0)
-enable_language(C)
+# 项目名称o3d_01， 编程语言C++
+project(TMC3 LANGUAGES CXX)
+
+# 使用C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(OpenCV_DIR "C:/little_boy/software/opencv/opencv/build/x64/vc16/lib")
-# 2. 查找 OpenCV 包
+# 添加Open3D根目录路径到CMake的搜索路径
+list(APPEND CMAKE_PREFIX_PATH "C:/little_boy/software/Open3D-devel-windows-amd64-0.19.0")
+
+# 2. 查找 包
 find_package(OpenCV REQUIRED
     COMPONENTS core highgui imgproc videoio  # 指定你需要的模块
     PATHS ${OpenCV_DIR}  # 指定搜索路径
 )
-# 检查是否找到 OpenCV
+
+find_package(Open3D REQUIRED)
+
+# 检查是否找到包
 if(NOT OpenCV_FOUND)
     message(FATAL_ERROR "OpenCV not found! Please set OpenCV_DIR correctly.")
 else()
@@ -16,194 +29,148 @@ else()
     message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
 endif()
 
+if(NOT Open3D_FOUND)
+    message(FATAL_ERROR "Open3D not found! Please set Open3D_DIR correctly.")
+else()
+    # 打印找到的 OpenCV 版本信息
+    message(STATUS "Found Open3D: ${Open3D_VERSION}")
+    message(STATUS "Open3D include dirs: ${Open3D_INCLUDE_DIRS}")
+    message(STATUS "Open3D libraries: ${Open3D_LIBS}")
+endif()
+
+
+
+
 if (UNIX)
   add_definitions(-D_POSIX_C_SOURCE=200809L)
 elseif (WIN32)
   add_definitions(-D_USE_MATH_DEFINES)
 endif()
 
-include(CheckSymbolExists)
-check_symbol_exists(getrusage sys/resource.h HAVE_GETRUSAGE)
 
-##
-# Determine the software version from VCS
-# Fallback to descriptive version if VCS unavailable
-#  NB: the "unconfirmed-" part refers to this being a fallback option
-#      and the reported version may or may not be accurate.
-set(VERSION_FALLBACK "unconfirmed-release-25.0-rc2")
-set(VERSION_FILE ${CMAKE_CURRENT_BINARY_DIR}/version.cpp)
-set(VERSION_FILE_IN ${CMAKE_CURRENT_SOURCE_DIR}/version.cpp.in)
-set(VERSION_CACHE_FILE ${CMAKE_CURRENT_BINARY_DIR}/version.cache)
+
 find_package(Git)
-add_custom_target(
-  genversion
-  COMMAND ${CMAKE_COMMAND} -D OUTPUT=${VERSION_FILE}
-                           -D TEMPLATE=${VERSION_FILE_IN}
-                           -D VERSION_FALLBACK=${VERSION_FALLBACK}
-                           -D VERSION_EXTRA=${VERSION_EXTRA}
-                           -D VERSION_CACHE_FILE=${VERSION_CACHE_FILE}
-                           -D GIT_EXECUTABLE=${GIT_EXECUTABLE}
-                           -P ${CMAKE_SOURCE_DIR}/scripts/genversion.cmake
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-)
 
-add_custom_command(
-  OUTPUT ${VERSION_FILE}
-  DEPENDS genversion
-)
 
-configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/TMC3Config.h.in"
-  "${PROJECT_BINARY_DIR}/tmc3/TMC3Config.h"
-)
 
-#
-# NB: avoid the use of wild cards for source files in this directory,
-# since cmake is unable to detect additions or removals in such cases
-# resulting in obscure broken builds when switching branches or
-# otherwise adding/removing files.
-#
-# Dependencies are permitted to use the wild card since they are
-# not expected to change without modifying this CMakeLists.txt.
-#
 
-file(GLOB PROJECT_IN_FILES
-  "TMC3Config.h.in"
-  "version.cpp.in"
-)
+
 
 file(GLOB PROJECT_INC_FILES
-  "Attribute.h"
-  "AttributeCommon.h"
-  "AttributeDecoder.h"
-  "AttributeEncoder.h"
-  "BitReader.h"
-  "BitWriter.h"
-  "DualLutCoder.h"
-  "FixedPoint.h"
-  "OctreeNeighMap.h"
-  "PCCKdTree.h"
-  "PCCMath.h"
-  "PCCMisc.h"
-  "PCCPointSet.h"
-  "PCCTMC3Common.h"
-  "PCCTMC3Decoder.h"
-  "PCCTMC3Encoder.h"
-  "RAHT.h"
-  "TMC3.h"
-  "attribute_raw.h"
-  "colourspace.h"
-  "coordinate_conversion.h"
-  "constants.h"
-  "entropy.h"
-  "entropychunk.h"
-  "entropydirac.h"
-  "entropyo3dgc.h"
-  "entropyutils.h"
-  "frame.h"
-  "framectr.h"
-  "geometry.h"
-  "geometry_intra_pred.h"
-  "geometry_octree.h"
-  "geometry_params.h"
-  "geometry_predictive.h"
-  "geometry_trisoup.h"
-  "layerGroupSlicing.h"
-  "hls.h"
-  "io_hls.h"
-  "io_tlv.h"
-  "motionWip.h"
-  "osspecific.h"
-  "partitioning.h"
-  "my_function.h"
-  "pcc_chrono.h"
-  "ply.h"
-  "pointset_processing.h"
-  "quantization.h"
-  "stb_image_write.h"
-  "ringbuf.h"
-  "tables.h"
-  "version.h"
-  "../dependencies/nanoflann/*.hpp"
-  "../dependencies/nanoflann/*.h"
-  "../dependencies/program-options-lite/*.h"
-  "../dependencies/schroedinger/schroarith.h"
+# "Attribute.h"
+# "AttributeCommon.h"
+# "AttributeDecoder.h"
+# "AttributeEncoder.h"
+# "BitReader.h"
+# "BitWriter.h"
+# "DualLutCoder.h"
+# "FixedPoint.h"
+# "OctreeNeighMap.h"
+# "PCCKdTree.h"
+# "PCCMath.h"
+# "PCCMisc.h"
+# "PCCPointSet.h"
+# "PCCTMC3Common.h"
+# "PCCTMC3Decoder.h"
+# "PCCTMC3Encoder.h"
+# "RAHT.h"
+# "TMC3.h"
+# "attribute_raw.h"
+# "colourspace.h"
+# "coordinate_conversion.h"
+# "constants.h"
+# "entropy.h"
+# "entropychunk.h"
+# "entropydirac.h"
+# "entropyo3dgc.h"
+# "entropyutils.h"
+# "frame.h"
+# "framectr.h"
+# "geometry.h"
+# "geometry_intra_pred.h"
+# "geometry_octree.h"
+# "geometry_params.h"
+# "geometry_predictive.h"
+# "geometry_trisoup.h"
+# "layerGroupSlicing.h"
+# "hls.h"
+# "io_hls.h"
+# "io_tlv.h"
+# "motionWip.h"
+# "osspecific.h"
+# "partitioning.h"
+ "my_function.h"
+# "pcc_chrono.h"
+ "ply.h"
+# "pointset_processing.h"
+# "quantization.h"
+# "stb_image_write.h"
+# "ringbuf.h"
+# "tables.h"
+# "version.h"
+# "../dependencies/nanoflann/*.hpp"
+# "../dependencies/nanoflann/*.h"
+# "../dependencies/program-options-lite/*.h"
+# "../dependencies/schroedinger/schroarith.h"
 )
 
 file(GLOB PROJECT_CPP_FILES
-  "AttributeCommon.cpp"
-  "AttributeDecoder.cpp"
-  "AttributeEncoder.cpp"
-  "DualLutCoder.cpp"
-  "FixedPoint.cpp"
-  "OctreeNeighMap.cpp"
-  "RAHT.cpp"
-  "my_function.cpp"
-  "TMC3.cpp"
-  "attribute_raw_decoder.cpp"
-  "attribute_raw_encoder.cpp"
-  "coordinate_conversion.cpp"
-  "decoder.cpp"
-  "encoder.cpp"
-  "entropydirac.cpp"
-  "frame.cpp"
-  "geometry_intra_pred.cpp"
-  "geometry_octree.cpp"
-  "geometry_octree_decoder.cpp"
-  "geometry_octree_encoder.cpp"
-  "geometry_predictive_decoder.cpp"
-  "geometry_predictive_encoder.cpp"
-  "geometry_trisoup_decoder.cpp"
-  "geometry_trisoup_encoder.cpp"
-  "layerGroupSlicing.cpp"
-  "io_hls.cpp"
-  "io_tlv.cpp"
-  "misc.cpp"
-  "motionWip.cpp"
-  "osspecific.cpp"
-  "partitioning.cpp"
-  "pcc_chrono.cpp"
-  "ply.cpp"
-  "pointset_processing.cpp"
-  "quantization.cpp"
-  "tables.cpp"
-  "../dependencies/program-options-lite/*.cpp"
-  "../dependencies/schroedinger/schroarith.c"
+# "AttributeCommon.cpp"
+# "AttributeDecoder.cpp"
+# "AttributeEncoder.cpp"
+# "DualLutCoder.cpp"
+# "FixedPoint.cpp"
+# "OctreeNeighMap.cpp"
+# "RAHT.cpp"
+ "my_function.cpp"
+ "TMC3.cpp"
+# "attribute_raw_decoder.cpp"
+# "attribute_raw_encoder.cpp"
+# "coordinate_conversion.cpp"
+# "decoder.cpp"
+# "encoder.cpp"
+# "entropydirac.cpp"
+# "frame.cpp"
+# "geometry_intra_pred.cpp"
+# "geometry_octree.cpp"
+# "geometry_octree_decoder.cpp"
+# "geometry_octree_encoder.cpp"
+# "geometry_predictive_decoder.cpp"
+# "geometry_predictive_encoder.cpp"
+# "geometry_trisoup_decoder.cpp"
+# "geometry_trisoup_encoder.cpp"
+# "layerGroupSlicing.cpp"
+# "io_hls.cpp"
+# "io_tlv.cpp"
+# "misc.cpp"
+# "motionWip.cpp"
+# "osspecific.cpp"
+# "partitioning.cpp"
+# "pcc_chrono.cpp"
+ "ply.cpp"
+# "pointset_processing.cpp"
+# "quantization.cpp"
+# "tables.cpp"
+# "../dependencies/program-options-lite/*.cpp"
+# "../dependencies/schroedinger/schroarith.c"
 )
 
-source_group (inc FILES ${PROJECT_INC_FILES})
-source_group (input FILES ${PROJECT_IN_FILES})
-source_group (cpp FILES ${PROJECT_CPP_FILES})
-
-include_directories(
-  "${PROJECT_BINARY_DIR}/tmc3"
-  "${PROJECT_SOURCE_DIR}"
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/nanoflann"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/program-options-lite"
-)
 
 add_executable (tmc3
   ${PROJECT_CPP_FILES}
   ${PROJECT_INC_FILES}
-  ${PROJECT_IN_FILES}
-  ${VERSION_FILE}
 )
-add_dependencies(tmc3 genversion)
 
-# 5. 链接 OpenCV 库
+# 5. 链接库
 target_link_libraries(tmc3 PRIVATE ${OpenCV_LIBS})
-
-# 6. 包含 OpenCV 头文件目录
 target_include_directories(tmc3 PRIVATE ${OpenCV_INCLUDE_DIRS})
 
-add_executable (ply-merge EXCLUDE_FROM_ALL
-  "../tools/ply-merge.cpp"
-  "misc.cpp"
-  "ply.cpp"
-  "../dependencies/program-options-lite/program_options_lite.cpp"
-  ${VERSION_FILE}
-)
-add_dependencies(ply-merge genversion)
+target_link_libraries(tmc3 PRIVATE Open3D::Open3D)
+
+# 由于下载的Open3D是动态库，需要将Open3D.dll拷贝到执行文件的目录下，以下自定义指令完成了这一工作。
+add_custom_command(TARGET tmc3 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    "${Open3D_DIR}/../bin/Open3D.dll"
+    $<TARGET_FILE_DIR:tmc3>)
 
 install (TARGETS tmc3 DESTINATION bin)

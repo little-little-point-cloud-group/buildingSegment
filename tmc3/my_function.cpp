@@ -1,15 +1,8 @@
-#include "TMC3.h"
+
 #include <opencv2/opencv.hpp>
 #include <memory>
 #include <filesystem>
-#include "PCCTMC3Encoder.h"
-#include "PCCTMC3Decoder.h"
-#include "constants.h"
 #include "ply.h"
-#include "pointset_processing.h"
-#include "program_options_lite.h"
-#include "io_tlv.h"
-#include "version.h"
 #include "my_function.h"
 using namespace std;
 using namespace pcc;
@@ -66,6 +59,76 @@ void extracted_contour(string read_path, string save_path,string flip) {
         drawContours(result, buildingContours, i, Scalar(255, 255, 0), 2);
     }
 
+
+
+
+    // 4. 准备写入OBJ文件
+    ofstream objFile("csa.obj");
+    if (!objFile.is_open()) {
+        cerr << "无法创建输出文件: " << endl;
+        return;
+    }
+
+    // OBJ文件头
+    objFile << "# 从轮廓生成的3D模型" << endl;
+    objFile << "# 轮廓数量: " << contours.size() << endl;
+    objFile << "# 顶点归一化到范围 [0,1] (x,y)" << endl << endl;
+
+    int vertexIndex = 1;  // OBJ文件顶点索引从1开始
+    vector<vector<int>> allVertexGroups;
+
+    // 5. 处理每个轮廓
+    for (size_t i = 0; i < contours.size(); i++) {
+        vector<Point> contour = contours[i];
+
+        // 轮廓归一化到[0,1]范围
+        vector<Point2f> normalizedContour;
+        for (const Point& p : contour) {
+            normalizedContour.push_back(Point2f(
+                static_cast<float>(p.x) / src.cols,
+                1.0f - static_cast<float>(p.y) / src.rows  // 翻转y轴
+            ));
+        }
+
+        // 为当前轮廓存储顶点索引
+        vector<int> vertexGroup;
+
+        // 添加底部和顶部顶点
+        for (const Point2f& p : normalizedContour) {
+            // 底部顶点 (z=0)
+            objFile << "v " << p.x << " " << p.y << " 0.0" << endl;
+            vertexGroup.push_back(vertexIndex++);
+
+            // 顶部顶点 (z=height)
+            objFile << "v " << p.x << " " << p.y << " " << 1 << endl;
+            vertexGroup.push_back(vertexIndex++);
+        }
+
+        allVertexGroups.push_back(vertexGroup);
+    }
+
+    // 6. 创建面
+    objFile << endl << "# 侧面 (四边形面)" << endl;
+    for (const vector<int>& vertices : allVertexGroups) {
+        int n = vertices.size() / 2;
+
+        // 创建侧面四边形
+        for (int i = 0; i < n; i++) {
+            int next = (i + 1) % n;
+
+            int bottomIdx1 = vertices[i * 2];
+            int topIdx1 = vertices[i * 2 + 1];
+            int bottomIdx2 = vertices[next * 2];
+            int topIdx2 = vertices[next * 2 + 1];
+
+            // 创建一个四边形面
+            objFile << "f " << bottomIdx1 << " " << bottomIdx2 << " "
+                << topIdx2 << " " << topIdx1 << endl;
+        }
+    }
+
+
+
     // 8. 显示处理过程中的图像
     //cv::namedWindow("红色通道提取", cv::WINDOW_NORMAL); // 允许调整窗口
     //cv::namedWindow("形态学处理结果", cv::WINDOW_NORMAL); // 允许调整窗口
@@ -97,190 +160,6 @@ Split(const string& s, const string& seperator)
   ans.push_back(str);
   return ans;
 }
-//1 逐行读取
-vector<int>
-read_category_num(string file)
-{
-  ifstream infile;
-  infile.open(file.data());  //将文件流对象与文件连接起来
-  assert(infile.is_open());  //若失败,则输出错误消息,并终止程序运行
-  string s;
-  vector<int> buffer;
-  while (getline(infile, s)) {
-    buffer.push_back(stoi(s));
-  }
-  infile.close();  //关闭文件输入流
-  return buffer;
-}
-
- PCCPointSet3
-read_nuscence_bin(string path, int pointcount)
-{
-  PCCPointSet3 pointcloud;
-  pointcloud.resize(pointcount);
-  // 打开二进制文件以读取数据
-  std::ifstream file(path, std::ios::binary);
-  if (!file) {
-    // 处理文件打开失败的情况
-    printf("文件打开失败");
-  }
-
-  // 假设我们知道文件中将存储多少个float数
-  std::vector<float> data(5 * pointcount);
-
-    // 读取数据到vector中
-    file.read(
-      reinterpret_cast<char*>(data.data()), 5 * pointcount * sizeof(float));
-  for (int i = 0; i < pointcount; i++) {
-    for (int k = 0; k <= 2; k++) {
-      pointcloud[i][k] = std::round(1000 * data[5 * i + k]);  //转成毫米
-    }
-  }
-
-  file.close();  // 关闭文件
-  return pointcloud;
-}
-
-
-
-
-  PCCPointSet3
-read_kitti_bin(string path, int pointcount)
-{
-  PCCPointSet3 pointcloud;
-  pointcloud.resize(pointcount);
-  // 打开二进制文件以读取数据
-  std::ifstream file(path, std::ios::binary);
-
-  if (!file) {
-    // 处理文件打开失败的情况
-    printf("文件打开失败");
-  }
-
-  // 假设我们知道文件中将存储多少个float数
-  std::vector<float> data(4 * pointcount);
-
-  // 读取数据到vector中
-  file.read(
-    reinterpret_cast<char*>(data.data()), 4 * pointcount * sizeof(float));
-  for (int i = 0; i < pointcount; i++) {
-    for (int k = 0; k <= 2; k++) {
-      pointcloud[i][k] = std::round(1000 * data[4 * i + k]);  //转成毫米
-    }
-  }
-
-  file.close();  // 关闭文件
-  return pointcloud;
-}
- void
-write_original_pointcloud(PCCPointSet3 cloud1,string path)
- {
-   
-       ply::PropertyNameMap attrNames;
-       Vec3<double> positionScale = {0, 0, 0};
-       attrNames.position = {"x", "y", "z"};
-       double plyScale = 1;
-         ply::write(
-           cloud1, attrNames, plyScale, positionScale, path, true);
-       
- }
-
- vector<int>
- readlidar(string filepath)
- {
-   vector<string> s = Split(filepath, "\\");
-   string label_num_path = "";
-   for (int i = 0; i < s.size();i++) {
-       if (s[i] == "original_pointcloud") {
-
-       string scnce_id = s[s.size()-2];
-         label_num_path =
-           label_num_path + "\\" + s[i] + "\\" + scnce_id + ".txt";
-       break;
-     }
-       if (i!=0)
-       label_num_path = label_num_path + "\\" + s[i];
-       else
-         label_num_path = label_num_path  + s[i];
-   }
-
-   vector<int> num_label = read_category_num(label_num_path);
-      vector<string> id = Split(s[s.size() - 1], ".");
-   int frame_id = stoi(id[0]);
-   int pointcount = num_label[frame_id];
-
-
-   string lidarpath;
-
-      lidarpath = "";
-   for (int i = 0; i < s.size(); i++) {
-     if (s[i] == "kitti") {
-       string scnce_id = s[s.size() - 2];
-       lidarpath =
-         lidarpath + s[i] + "\\label\\sequences\\"  + scnce_id + "\\labels\\"+id[0]+".label";
-       break;
-     }
-     if (i!=0)
-     lidarpath = lidarpath + "\\" + s[i];
-     else
-       lidarpath = s[i];
-   }
-
-   std::ifstream file(lidarpath, std::ios::binary);
-   if (!file) {
-     // 处理文件打开失败的情况
-     printf("文件打开失败");
-   }
-
-   // 假设我们知道文件中将存储多少个float数
-   std::vector<int> data(pointcount);
-
-   // 读取数据到vector中
-   file.read(reinterpret_cast<char*>(data.data()), pointcount * sizeof(float));
-
-   
-   file.close();  // 关闭文件
-   return data;
- }
-
-
-void
- write_lidar(vector<int> category,string path)
- {
-  vector<string> s = Split(path, "\\");
-   int n = s.size();
-  vector<string> id = Split(s[n - 1], ".");
-
-    string savepath;
-   savepath = "H:\\luxiaoliang\\subsample_tmc13\\label\\"+s[n-2]+"\\"+id[0]+".txt";
-   ofstream out(savepath, ios::trunc);
-   if (!out.is_open()) {
-     std::cout << "Failed to open file" << std::endl;
-   }
-   int num = category.size();
-   for (int i = 0; i < num; i++) {
-     out << category[i] << endl;
-   }
-   out.close();
- }
-
-
-vector<string>
- read_token(string file)
- {
-   ifstream infile;
-   infile.open(file.data());  //将文件流对象与文件连接起来
-   assert(infile.is_open());  //若失败,则输出错误消息,并终止程序运行
-   string s;
-   vector<string> buffer;
-   while (getline(infile, s)) {
-     buffer.push_back(s);
-   }
-   infile.close();  //关闭文件输入流
-   return buffer;
- }
-
-
 
 
  param
