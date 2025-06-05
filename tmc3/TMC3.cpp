@@ -202,7 +202,86 @@ private: Box box;
     }
 
 };
+int o3d(string path) {
+    // 1. 读取点云
+    geometry::PointCloud pcd;
+    if (io::ReadPointCloud(path, pcd)) {
+        std::cout << "成功读取点云，包含 " << pcd.points_.size() << " 个点" << std::endl;
+    }
+    else {
+        std::cerr << "读取点云失败" << std::endl;
+        return -1;
+    }
 
+    // 2. 计算法向量 (使用KDTree搜索，搜索半径0.1，最多考虑30个邻居)
+    pcd.EstimateNormals(geometry::KDTreeSearchParamHybrid(1, 50));
+    //pcd.OrientNormalsToAlignWithDirection(Eigen::Vector3d(0.0, 0.0, 1.0));
+    std::cout << "法向量计算完成" << std::endl;
+
+    for (int i = 0;i < pcd.points_.size();i++)
+      for(int k=0;k<3;k++)
+        pcd.normals_[i][k] /= 10;
+
+
+    // 3. 构建KDTree并查找10最近邻
+    geometry::KDTreeFlann kdtree(pcd);
+    int query_index = 0;  // 查询点的索引
+    std::vector<int> indices(10);
+    std::vector<double> distances(10);
+
+    if (kdtree.SearchKNN(pcd.points_[query_index], 10, indices, distances) > 0) {
+        std::cout << "点 " << query_index << " 的10个最近邻索引: ";
+        for (size_t i = 0; i < indices.size(); ++i) {
+            std::cout << indices[i] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+
+    // 5. 保存点云 (包含法向量)
+    if (io::WritePointCloud("C:\\Users\\31046\\Desktop\\city3D\\output.ply", pcd)) {
+        std::cout << "点云保存成功" << std::endl;
+    }
+    else {
+        std::cerr << "保存点云失败" << std::endl;
+    }
+
+    return 0;
+}
+int plane(string path) {
+    // 1. 读取点云
+    geometry::PointCloud pcd;
+    io::ReadPointCloud(path, pcd);
+
+    // 2. 平面分割参数
+    const double distance_threshold = 0.05;  // 2cm
+    const int ransac_n = 4;
+    const int num_iterations = 1000;         // 增加迭代次数
+    const double probability = 0.8;        // 99.9% 置信度
+
+    // 3. 执行平面分割
+    auto [plane_model, inliers] = pcd.SegmentPlane(
+        distance_threshold, ransac_n, num_iterations, probability);
+
+    // 4. 提取平面点云
+    auto plane_cloud = pcd.SelectByIndex(inliers);
+    auto remaining_cloud = pcd.SelectByIndex(inliers, true); // 反选
+
+    // 5. 输出结果
+    std::cout << "平面方程: " << plane_model.transpose() << std::endl;
+    std::cout << "内点数量: " << inliers.size() << std::endl;
+    std::cout << "外点数量: " << remaining_cloud->points_.size() << std::endl;
+
+    // 6. 可视化
+    plane_cloud->PaintUniformColor(Eigen::Vector3d(1, 0, 0));  // 红色平面
+    remaining_cloud->PaintUniformColor(Eigen::Vector3d(0, 0, 1)); // 蓝色剩余点
+
+    visualization::DrawGeometries({
+        plane_cloud, remaining_cloud
+        }, "平面分割结果", 1600, 900);
+
+    return 0;
+}
 int
 main(int argc, char* argv[])
 {
@@ -211,19 +290,9 @@ main(int argc, char* argv[])
   double positionScale = 1000;                   //转成毫米       
   ply::read(path.readPath, { "x", "y", "z" }, positionScale, pointCloud);
 
-  open3d::geometry::PointCloud cloud;
-  cloud.points_.resize(pointCloud.getPointCount());
-  for (size_t i = 0; i < pointCloud.getPointCount(); ++i) {
-      cloud.points_[i] = Eigen::Vector3d(
-          pointCloud[i][0],
-          pointCloud[i][1],
-          pointCloud[i][2]
-      );
-  }
+  plane(path.readPath);
 
 
-  // 5. 可视化点云
-  open3d::io::WritePointCloud("cloud.ply", cloud);
   buildingSeg seg=buildingSeg(pointCloud);
   seg.compute_gird_picture();
   string base= "C:\\Users\\31046\\Desktop\\city3D\\";
