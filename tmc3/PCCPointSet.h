@@ -64,7 +64,8 @@ typedef Vec3<int32_t> point_t;
 class PCCPointSet3 {
 public:
   typedef point_t PointType;
-
+  std::vector<int> planeIdx;
+  
   //=========================================================================
   // proxy object for use with iterator, allowing handling of PCCPointSet3's
   // structure-of-arrays as a single array.
