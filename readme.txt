@@ -9,4 +9,4 @@ You can build from the source code˙
 	
 之后可以运行make.sh（修改为release可调式模式））
 
--a=C:\Users\31046\Desktop\city3D\Block.ply -s=C:\Users\31046\Desktop\city3D\pointCloud.ply
+-a=Block.ply -s=pointCloud.ply

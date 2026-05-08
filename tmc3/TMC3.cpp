@@ -220,12 +220,10 @@ main(int argc, char* argv[])
 
   ply::write(pointCloud, { "x", "y", "z" }, 1.00, { 0, 0, 0 }, path.savePath, false);
 
-  //seg.compute_gird_picture();
-  //string base= "C:\\Users\\31046\\Desktop\\city3D\\";
-  //seg.save_image(base);
-  //extracted_contour(base+"像素数量.png", base + "extracted_contours.png",base+"extracted_contours_flip.png");
+  seg.compute_gird_picture();
+  string base= ".";
+  seg.save_image(base);
+  extracted_contour(base+"像素数量.png", base + "extracted_contours.png",base+"extracted_contours_flip.png");
 
   return 0;
 }
-
-//ply::write(encoder_pointCloud, { "x", "y", "z" }, 1.00, { 0, 0, 0 }, path.savePath, false);

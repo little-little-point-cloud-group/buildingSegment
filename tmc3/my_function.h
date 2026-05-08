@@ -78,7 +78,7 @@ void get_Normal_and_K_neighbor(PCCPointSet3& pointCloud, std::vector<Vec3<double
     }
 
 
-    open3d::io::WritePointCloud("C:\\Users\\31046\\Desktop\\city3D\\output.ply", pcd);
+    //open3d::io::WritePointCloud("C:\\Users\\31046\\Desktop\\city3D\\output.ply", pcd);
 
 
 
@@ -87,11 +87,6 @@ void get_Normal_and_K_neighbor(PCCPointSet3& pointCloud, std::vector<Vec3<double
 
 
 class seg_plane {
-
-
-public:
-
-
 
 public:
     // 使用初始化列表直接绑定引用
@@ -120,4 +115,10 @@ private:
     Vec3<double> cur_normal;
     Vec3<int> cur_center;
     plane cur_plane;
+};
+
+
+
+enum pointAttachedPlane{
+    noAttached = -1,
 };

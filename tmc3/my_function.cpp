@@ -182,7 +182,7 @@ vector<plane> seg_plane::get_planes() {
      vector<plane> planes;
 
      for (;i < Cloud.getPointCount();i++) {
-         if (Cloud.planeIdx[i] == -1) {
+         if (Cloud.planeIdx[i] == pointAttachedPlane::noAttached) {
 
              cur_plane = plane();
              cur_plane.id = cur_planeId;
@@ -204,15 +204,11 @@ vector<plane> seg_plane::get_planes() {
                  for (int i = 0;i < cur_plane.pointIdx.size();i++)
                  {
                      auto id = cur_plane.pointIdx[i];
-                     Cloud.planeIdx[id] = -1;
+                     Cloud.planeIdx[id] = pointAttachedPlane::noAttached;
                  }
              }
-                
-
-             
          }
      }
-
      return planes;
  }
 
@@ -223,20 +219,25 @@ bool seg_plane::Broad(int Idx,int depth) {
 
     for (int idIndex = 1;idIndex < K;idIndex++) {
         auto id = index[idIndex];
-        if (Cloud.planeIdx[id] <= 0) {
+        if (Cloud.planeIdx[id] == pointAttachedPlane::noAttached) {
             Vec3<int> pVector = Cloud[id] - cur_center;
-            auto distance_plane = abs(pVector * cur_normal);
 
-            if (distance_plane <= th_thickness && cur_normal*normal[id]>=0.88) {
+            if (abs(pVector * cur_normal) <= th_thickness && cur_normal * normal[id] >= 0.88) {
                 selectedId.push_back(id);
                 cur_plane.pointIdx.push_back(id);
                 Cloud.planeIdx[id]=cur_planeId;
             }
-               
         }
     }
-    if (depth==0&&selectedId.size() < K - 1)
+
+    //不是好的种子点，平面构建失败，换种子点
+    if (depth == 0 && selectedId.size() < K - 1) { 
+        for (auto& id : selectedId)
+            Cloud.planeIdx[id] = pointAttachedPlane::noAttached;
+
         return false;
+    }
+        
 
     cur_normal = {0,0,0};
     cur_center = {0,0,0};
